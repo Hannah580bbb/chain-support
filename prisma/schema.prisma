@@ -1,0 +1,102 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for admin authentication
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  role          String    @default("admin")
+  isActive      Boolean   @default(true)
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  auditLogs     AuditLog[]
+}
+
+// Session model for NextAuth
+model Session {
+  id            String   @id @default(cuid())
+  sessionToken  String   @unique
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires       DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Callback request model
+model CallbackRequest {
+  id                String   @id @default(cuid())
+  firstName         String
+  lastName          String
+  email             String
+  phone             String
+  country           String
+  preferredTime     String
+  issueCategory     String
+  message           String   @db.Text
+  status            String   @default("new")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  notes             Note[]
+  auditLogs         AuditLog[]
+  
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Notes model for internal notes on requests
+model Note {
+  id                String   @id @default(cuid())
+  content           String   @db.Text
+  callbackRequest   CallbackRequest @relation(fields: [callbackRequestId], references: [id], onDelete: Cascade)
+  callbackRequestId String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Settings model
+model Settings {
+  id                String   @id @default("settings")
+  businessName      String   @default("Chain Support")
+  supportEmail      String   @default("support@chainsupport.com")
+  phone             String   @default("+1 (000) 000-0000")
+  homepageText      String   @default("Professional Digital Asset Support")
+  smtpHost          String   @default("")
+  smtpPort          Int      @default(587)
+  smtpUser          String   @default("")
+  smtpPass          String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Audit log model
+model AuditLog {
+  id                String    @id @default(cuid())
+  action            String
+  userId            String?
+  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  callbackRequest   CallbackRequest? @relation(fields: [callbackRequestId], references: [id], onDelete: SetNull)
+  callbackRequestId String?
+  details           String    @db.Text
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([callbackRequestId])
+  @@index([createdAt])
+}
